@@ -6,6 +6,16 @@ import { authenticateUser, authenticateAdmin } from "../middleware/authMiddlewar
 const router = express.Router();
 
 // Get all users (for admin)
+router.get("/users/:id", authenticateAdmin, async (req, res) => {
+  try {
+    const id= req.user.id;
+    const users = await User.findOne({_id:id}); // Exclude password
+    res.status(200).json(users);
+  } catch (error) {
+    console.error("Error fetching users:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
 router.get("/users", authenticateAdmin, async (req, res) => {
   try {
     const users = await User.find().select("-password"); // Exclude password

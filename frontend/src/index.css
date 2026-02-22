@@ -54,3 +54,8 @@
     opacity: 1;
   }
 }
+
+
+.scroll1::-webkit-scrollbar {
+display: none;
+}

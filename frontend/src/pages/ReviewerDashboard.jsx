@@ -89,7 +89,7 @@ const ReviewerDashboard = () => {
   return (
     <div
       className="p-6 min-h-screen bg-cover bg-center"
-      style={{ backgroundImage: "url('https://images.unsplash.com/photo-1517433456452-f9633a875f6f')", width : "98vw" }}
+      
     >
       <div className="flex justify-between items-center mb-6 bg-white/80 p-4 rounded-xl shadow">
         <h1 className="text-3xl font-bold">Reviewer Dashboard</h1>

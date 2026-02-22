@@ -1,38 +1,62 @@
 import { useState } from "react";
-import axios from "axios";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { Mail, Lock } from "lucide-react"; // Lucide icons
-import React from "react";
-import logo from '../assets/logo.png'
+import { jwtDecode } from "jwt-decode";
+import axios from "../utils/axiosInstance";
+import logo from "../assets/logo.png";
 
 const Login = () => {
   const [formData, setFormData] = useState({ email: "", password: "" });
   const { login } = useAuth();
+  const navigate = useNavigate();
+  const [error, setError] = useState("");
 
   const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    setFormData((prev) => ({
+      ...prev,
+      [e.target.name]: e.target.value,
+    }));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    try {
-      const response = await axios.post("http://localhost:5000/api/auth/login", formData);
-      const { token } = response.data;
 
-      if (!token) {
-        console.error("No token received");
-        return;
-      }
+try {
+  const response = await axios.post("/auth/login", formData);
 
-      login(token);
-    } catch (error) {
-      console.error("Login error", error.response?.data?.error || error.message);
-    }
+  const { token } = response.data;
+
+  if (!token) {
+    console.error("No token received");
+    return;
+  }
+
+  const decoded = jwtDecode(token);
+
+  localStorage.setItem("token", token);
+  localStorage.setItem("user", JSON.stringify(decoded));
+
+  login(token);
+
+  if (decoded.role === "admin") {
+    navigate("/admin-dashboard");
+  } else if (decoded.role === "reviewer") {
+    navigate("/reviewer-dashboard");
+  } else {
+    navigate("/user-dashboard");
+  }
+
+} catch (error) {
+  console.error(
+    "Login error:",
+    error.response?.data?.error || error.message
+  );
+  setError(error.response?.data?.error || error.message);
+}
   };
 
   return (
-  <div className="min-h-screen flex items-center justify-center bg-gray-100 p-4 gap-1">
+    <div className="min-h-screen flex items-center justify-center bg-gray-100 p-4 gap-1">
 
     <div className='w-full md:w-full h-full flex md:gap-50 gap-5 flex-col md:flex-row items-center justify-center'>
 
@@ -97,6 +121,9 @@ const Login = () => {
                 required
               />
             </div>
+            {error && (
+  <p className="text-red-500 text-sm px-2">{error}</p>
+)}
 
             <div className='flex w-full flex-col p-2 gap-y-2'>
               <button
@@ -129,8 +156,7 @@ const Login = () => {
 
     </div>
   </div>
-);
-
+  );
 };
 
 export default Login;

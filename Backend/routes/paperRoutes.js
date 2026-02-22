@@ -3,6 +3,7 @@ import multer from "multer";
 import path from "path";
 import fs from "fs";
 import Paper from "../models/Paper.js";
+import { authenticateAdmin, authenticateUser } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
@@ -67,19 +68,27 @@ router.post("/upload", upload.single("file"), async (req, res) => {
 router.post("/reupload/:paperId", upload.single("file"), async (req, res) => {
   try {
     const { paperId } = req.params;
-    const { title, reuploadCount } = req.body;
-
-    if (reuploadCount >= 3) {
-      return res.status(400).json({ message: "Maximum reupload attempts reached" });
-    }
 
     const paper = await Paper.findById(paperId);
-    if (!paper) return res.status(404).json({ message: "Paper not found" });
+    if (!paper) {
+      return res.status(404).json({ message: "Paper not found" });
+    }
 
-    paper.title = title;
+    // Stop if max attempts reached
+    if ((paper.reuploadCount || 1) >= 3) {
+      return res.status(400).json({
+        message: "Maximum reupload attempts reached",
+      });
+    }
+
+    if (!req.file) {
+      return res.status(400).json({ message: "File is required" });
+    }
+
+    // Update only what is needed
     paper.fileUrl = `/uploads/${req.file.filename}`;
-    paper.reuploadCount = reuploadCount + 1;
-    paper.status = "Pending"; // Reset status to Pending
+    paper.reuploadCount = (paper.reuploadCount || 1) + 1;
+    paper.status = "Pending";
 
     await paper.save();
 
@@ -91,11 +100,29 @@ router.post("/reupload/:paperId", upload.single("file"), async (req, res) => {
 });
 
 // Get Papers (User-specific)
-router.get("/my-papers", async (req, res) => {
+router.get("/my-papers",authenticateUser, async (req, res) => {
   try {
-    const { userId } = req.query;
-    const papers = await Paper.find({ author: userId }).lean(); // make sure you get all fields
-    res.status(200).json(papers);
+     console.log(req.user);
+    const authorId = req.user.id;
+   
+    // const papers = await Paper.find({ author: userId }).lean(); // make sure you get all fields
+    const papers = await Paper.findOne({author:authorId})
+    console.log("all papers ",papers)
+    res.status(200).json(papers);;
+  } catch (error) {
+    console.error("Error fetching papers:", error);
+    res.status(500).json({ message: "Server Error" });
+  }
+});
+router.get("/all-papers",authenticateAdmin, async (req, res) => {
+  try {
+     console.log(req.user);
+    const authorId = req.user.id;
+   
+    // const papers = await Paper.find({ author: userId }).lean(); // make sure you get all fields
+    const papers = await Paper.find({});
+    console.log("all papers ",papers)
+    res.status(200).json(papers);;
   } catch (error) {
     console.error("Error fetching papers:", error);
     res.status(500).json({ message: "Server Error" });
