@@ -15,6 +15,7 @@ import Papers from "./pages/Papers";
 import AsignRev from "./components/AsignRev";
 import RegiteredUsers from "./components/RegiteredUsers";
 import UploadPaper from "./components/UploadPaper";
+import AddReviewer from "./components/AddReviewer";
 
 const Layout = () => {
   return (
@@ -53,6 +54,7 @@ function App() {
     <Route path='/assign-reviewer'             element={<AsignRev/>}/>
     <Route path='/registered-users'             element={<RegiteredUsers/>}/>
     <Route path='/upload'             element={<UploadPaper/>}/>
+    <Route path='/add-reviewer'             element={<AddReviewer/>}/>
   </Route>
 </Route>
 

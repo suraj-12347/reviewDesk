@@ -98,33 +98,13 @@ const AdminDashboard = () => {
 
               <PaperCard
                 paper={paper}
+                reviews={paper.reviews}
                 user={user}
                 updatePaperStatus={updatePaperStatus}
                
               />
 
-              {paper.status === "Rejected" &&
-                paper.reuploadCount < 3 && (
-                  <div className="flex flex-col gap-2">
-                    <input
-                      type="file"
-                      onChange={(e) =>
-                        setReuploadFiles((prev) => ({
-                          ...prev,
-                          [paper._id]: e.target.files[0],
-                        }))
-                      }
-                      className="border p-2 rounded text-sm"
-                    />
-
-                    <button
-                      onClick={() => handleReupload(paper)}
-                      className="bg-gradient-to-r from-orange-500 to-yellow-500 text-white px-4 py-2 rounded hover:scale-105 transition"
-                    >
-                      Reupload
-                    </button>
-                  </div>
-                )}
+              
             </div>
           ))}
         </div>

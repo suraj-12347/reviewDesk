@@ -2,6 +2,7 @@ import express from "express";
 import Paper from "../models/Paper.js";
 import User from "../models/User.js";
 import { authenticateUser, authenticateAdmin } from "../middleware/authMiddleware.js";
+import bcrypt from "bcryptjs";
 
 const router = express.Router();
 
@@ -93,6 +94,56 @@ router.put("/update-status", authenticateUser, async (req, res) => {
   } catch (error) {
     console.error("Error updating paper status:", error);
     res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+// create reviewer
+
+// Register new reviewer (Admin only)
+router.post("/register-reviewer", authenticateAdmin, async (req, res) => {
+  try {
+    const { name, email, password } = req.body;
+
+    // Basic validation
+    if (!name || !email || !password) {
+      return res.status(400).json({ error: "All fields are required" });
+    }
+
+    if (password.length < 6) {
+      return res.status(400).json({ error: "Password must be at least 6 characters" });
+    }
+
+    // Check if email already exists
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.status(400).json({ error: "Email already registered" });
+    }
+
+    // Hash password
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Create reviewer
+    const reviewer = new User({
+      name,
+      email,
+      password: hashedPassword,
+      role: "reviewer",
+    });
+
+    await reviewer.save();
+
+    res.status(201).json({
+      message: "Reviewer registered successfully",
+      reviewer: {
+        _id: reviewer._id,
+        name: reviewer.name,
+        email: reviewer.email,
+        role: reviewer.role,
+      },
+    });
+  } catch (error) {
+    console.error("Error registering reviewer:", error);
+    res.status(500).json({ error: "Server error" });
   }
 });
 
