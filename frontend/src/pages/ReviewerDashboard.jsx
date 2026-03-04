@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import axios from "axios";
 import { LogOut, FileText, UploadCloud } from "lucide-react";
 import React from "react";
+import Papers from "./Papers";
+import PaperCard from "../components/PaperCard";
 
 const ReviewerDashboard = () => {
   const [papers, setPapers] = useState([]);
@@ -88,90 +90,35 @@ const ReviewerDashboard = () => {
 
   return (
     <div
-      className="p-6 min-h-screen bg-cover bg-center"
+      className=" min-h-screen bg-cover bg-center"
       
     >
-      <div className="flex justify-between items-center mb-6 bg-white/80 p-4 rounded-xl shadow">
+      <div className="flex justify-center items-center mb-1 bg-white/80 p-4  shadow">
         <h1 className="text-3xl font-bold">Reviewer Dashboard</h1>
-        <button
-          onClick={handleLogout}
-          className="flex items-center gap-2 bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
-        >
-          <LogOut size={18} /> Logout
-        </button>
+       
       </div>
+       <div className="p-4">
+         {papers.length > 0 ? (
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          {papers.map((paper) => (
+            <div key={paper._id} className="space-y-3">
 
-      <div className="bg-white/90 p-6 shadow rounded-lg">
-        <h2 className="text-xl font-semibold mb-4">Assigned Papers</h2>
+              <PaperCard
+                paper={paper}
+               
+               
+              />
 
-        <table className="w-full border-collapse border border-gray-300">
-          <thead>
-            <tr className="bg-gray-200 text-center">
-              <th className="border p-2">Title</th>
-              <th className="border p-2">Author</th>
-              <th className="border p-2">Feedback</th>
-              <th className="border p-2">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {papers.map((paper) => (
-              <tr key={paper._id} className="text-center bg-white/80">
-                <td className="border p-2 font-medium">{paper.title}</td>
-                <td className="border p-2">{paper.author?.name || "Unknown"}</td>
-
-                <td className="border p-2">
-                  <textarea
-                    value={feedback[paper._id]}
-                    onChange={(e) => handleFeedbackChange(paper._id, e.target.value)}
-                    className="border p-2 rounded w-full mb-2"
-                    placeholder="Write your feedback here..."
-                  />
-
-                  <select
-                    value={status[paper._id]}
-                    onChange={(e) => handleStatusChange(paper._id, e.target.value)}
-                    className="border p-2 rounded w-full mb-2"
-                  >
-                    <option value="Pending">Pending</option>
-                    <option value="Approved">Approved</option>
-                    <option value="Changes Required">Changes Required</option>
-                  </select>
-
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <UploadCloud size={18} className="text-gray-600" />
-                    <input
-                      type="file"
-                      accept=".pdf,.doc,.docx"
-                      onChange={(e) => handleFileChange(paper._id, e.target.files[0])}
-                      className="w-full"
-                    />
-                  </label>
-                </td>
-
-                <td className="border p-2 space-y-2">
-                  <button
-                    onClick={() => viewPaper(paper.fileUrl)}
-                    className="w-full flex justify-center items-center gap-2 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
-                  >
-                    <FileText size={18} /> View Paper
-                  </button>
-
-                  <button
-                    onClick={() => submitFeedback(paper._id)}
-                    className="w-full bg-orange-500 text-white px-4 py-2 rounded hover:bg-orange-600"
-                  >
-                    Submit Feedback
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-
-        {papers.length === 0 && (
-          <p className="text-center text-gray-500 mt-6">No papers assigned yet.</p>
-        )}
-      </div>
+              
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p className="text-gray-600 text-lg">
+          No papers uploaded yet.
+        </p>
+      )}
+       </div>
     </div>
   );
 };

@@ -87,7 +87,7 @@ try {
 
           <form onSubmit={handleSubmit} className='bg-white  flex flex-col w-full rounded-xl gap-5 p-4 px-5 shadow-lg'>
             <div className='text-center'>
-              <p className='text-blue-600 text-3xl font-bold'>Welcome back !</p>
+              <h1 className='text-blue-600 text-3xl font-bold'>Welcome back !</h1>
                <p className='text-gray-500'>Keep all your credentials safe.</p> 
             </div>
            

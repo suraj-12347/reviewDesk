@@ -73,32 +73,28 @@ const Papers = (props) => {
     }
   };
 
-  const handleReupload = async (paper) => {
-    const file = reuploadFiles[paper._id];
+ const handleReupload = async (paperId, file) => {
+  if (!file) {
+    alert("Select a file first.");
+    return;
+  }
 
-    if (!file) {
-      alert("Select a file first.");
-      return;
-    }
+  try {
+    const formData = new FormData();
+    formData.append("file", file);
 
-    try {
-      const formData = new FormData();
-      formData.append("file", file);
+   await axiosInstance.post(`/papers/reupload/${paperId}`, formData, {
+  headers: { "Content-Type": "multipart/form-data" },
+});
 
-      await axiosInstance.post(
-        `/papers/reupload/${paper._id}`,
-        formData,
-        {
-          headers: { "Content-Type": "multipart/form-data" },
-        }
-      );
-
-      alert("Reuploaded successfully");
-      fetchPapers();
-    } catch (error) {
-      console.error("Reupload error:", error);
-    }
-  };
+    alert("Reuploaded successfully");
+    setReuploadFiles((prev) => ({ ...prev, [paperId]: null }));
+    fetchPapers();
+  } catch (error) {
+    console.error("Reupload error:", error);
+    alert(error.response?.data?.message || "Failed to reupload.");
+  }
+};
 
   if (loading) {
     return <div className="p-10 text-center">Loading papers...</div>;

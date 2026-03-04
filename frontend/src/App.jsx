@@ -16,6 +16,9 @@ import AsignRev from "./components/AsignRev";
 import RegiteredUsers from "./components/RegiteredUsers";
 import UploadPaper from "./components/UploadPaper";
 import AddReviewer from "./components/AddReviewer";
+import AddCategory from "./components/AddCategory";
+import { Toaster } from "react-hot-toast";
+import Review from "./components/Review";
 
 const Layout = () => {
   return (
@@ -27,7 +30,8 @@ const Layout = () => {
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 scroll1 bg-[#f3f4f6]  overflow-y-auto mr-10">
+      <main className="flex-1 scroll1 bg-[#f3f4f6]   overflow-y-auto mr-10">
+         <Toaster position="top-right" reverseOrder={false} />
         <Outlet />
       </main>
 
@@ -55,6 +59,8 @@ function App() {
     <Route path='/registered-users'             element={<RegiteredUsers/>}/>
     <Route path='/upload'             element={<UploadPaper/>}/>
     <Route path='/add-reviewer'             element={<AddReviewer/>}/>
+    <Route path='/add-categories'             element={<AddCategory/>}/>
+      <Route path='/review'             element={<Review/>}/>
   </Route>
 </Route>
 

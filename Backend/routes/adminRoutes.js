@@ -1,13 +1,15 @@
 import express from "express";
 import Paper from "../models/Paper.js";
 import User from "../models/User.js";
-import { authenticateUser, authenticateAdmin } from "../middleware/authMiddleware.js";
+import Category from "../models/Category.js";
+import { authenticateUser, authorizeRoles } from "../middleware/authMiddleware.js";
 import bcrypt from "bcryptjs";
 
 const router = express.Router();
 
 // Get all users (for admin)
-router.get("/users/:id", authenticateAdmin, async (req, res) => {
+router.get("/users/:id", authenticateUser,
+  authorizeRoles("admin"), async (req, res) => {
   try {
     const id= req.user.id;
     const users = await User.findOne({_id:id}); // Exclude password
@@ -17,7 +19,8 @@ router.get("/users/:id", authenticateAdmin, async (req, res) => {
     res.status(500).json({ error: "Internal Server Error" });
   }
 });
-router.get("/users", authenticateAdmin, async (req, res) => {
+router.get("/users",authenticateUser,
+  authorizeRoles("admin"), async (req, res) => {
   try {
     const users = await User.find().select("-password"); // Exclude password
     res.status(200).json(users);
@@ -28,17 +31,26 @@ router.get("/users", authenticateAdmin, async (req, res) => {
 });
 
 // Get all papers
-router.get("/papers",authenticateUser, authenticateAdmin, async (req, res) => {
-  try {
-    const papers = await Paper.find().populate("author", "name email"); 
-    res.json(papers);
-  } catch (error) {
-    res.status(500).json({ error: "Error fetching papers" });
+router.get(
+  "/papers",
+  authenticateUser,
+  authorizeRoles("admin"),
+  async (req, res) => {
+    try {
+      const papers = await Paper.find()
+        .populate("author", "name email")
+        .populate("category", "name subCategories"); 
+
+      res.json(papers);
+    } catch (error) {
+      res.status(500).json({ error: "Error fetching papers" });
+    }
   }
-});
+);
 
 // Get all reviewer
-router.get("/reviewers", authenticateAdmin, async (req, res) => {
+router.get("/reviewers", authenticateUser,
+  authorizeRoles("admin"), async (req, res) => {
   try {
     const reviewers = await User.find({ role: "reviewer" }).select("name email");
     res.json(reviewers);
@@ -49,7 +61,8 @@ router.get("/reviewers", authenticateAdmin, async (req, res) => {
 });
 
 // Assign paper to a reviewer
-router.put("/assign-reviewer", authenticateAdmin, async (req, res) => {
+router.put("/assign-reviewer", authenticateUser,
+  authorizeRoles("admin"), async (req, res) => {
   const { paperId, reviewerId } = req.body;
 
   try {
@@ -74,7 +87,8 @@ router.put("/assign-reviewer", authenticateAdmin, async (req, res) => {
 });
 
 // Update paper status (Approve/Reject)
-router.put("/update-status", authenticateUser, async (req, res) => {
+router.put("/update-status", authenticateUser,
+  authorizeRoles("admin"), async (req, res) => {
   try {
     const { paperId, status } = req.body;
     if (!paperId || !status) {
@@ -100,51 +114,121 @@ router.put("/update-status", authenticateUser, async (req, res) => {
 // create reviewer
 
 // Register new reviewer (Admin only)
-router.post("/register-reviewer", authenticateAdmin, async (req, res) => {
-  try {
-    const { name, email, password } = req.body;
+router.post(
+  "/register-reviewer",
+  authenticateUser,
+  authorizeRoles("admin"),
+  async (req, res) => {
+    try {
+      const {
+        name,
+        email,
+        password,
+        country,
+        state,
+        district,
+        reviewerCategory,
+      } = req.body;
 
-    // Basic validation
-    if (!name || !email || !password) {
-      return res.status(400).json({ error: "All fields are required" });
+      /* ========= BASIC VALIDATION ========= */
+
+      if (
+        !name ||
+        !email ||
+        !password ||
+        !country ||
+        !state ||
+        !district ||
+        !reviewerCategory?.mainCategory ||
+        !reviewerCategory?.subCategory
+      ) {
+        return res.status(400).json({
+          error: "All fields are required",
+        });
+      }
+
+      if (password.length < 8) {
+        return res.status(400).json({
+          error: "Password must be at least 8 characters",
+        });
+      }
+
+      /* ========= EMAIL NORMALIZATION ========= */
+
+      const normalizedEmail = email.toLowerCase().trim();
+
+      const existingUser = await User.findOne({
+        email: normalizedEmail,
+      });
+
+      if (existingUser) {
+        return res.status(400).json({
+          error: "Email already registered",
+        });
+      }
+
+      /* ========= CATEGORY VALIDATION ========= */
+
+      const categoryDoc = await Category.findById(
+        reviewerCategory.mainCategory
+      );
+
+      if (!categoryDoc) {
+        return res.status(400).json({
+          error: "Invalid main category",
+        });
+      }
+
+      if (
+        !categoryDoc.subCategories.includes(
+          reviewerCategory.subCategory
+        )
+      ) {
+        return res.status(400).json({
+          error: "Invalid sub category",
+        });
+      }
+
+      /* ========= HASH PASSWORD ========= */
+
+      const hashedPassword = await bcrypt.hash(password, 12);
+
+      /* ========= CREATE SAFE REVIEWER ========= */
+
+      const reviewer = await User.create({
+        name,
+        email: normalizedEmail,
+        password: hashedPassword,
+        role: "reviewer",
+        country,
+        state,
+        district,
+        reviewerCategory: {
+          mainCategory: reviewerCategory.mainCategory,
+          subCategory: reviewerCategory.subCategory,
+        },
+        reviewerStatus: "approved", // since admin is creating
+      });
+
+      /* ========= RESPONSE ========= */
+
+      res.status(201).json({
+        success: true,
+        message: "Reviewer registered successfully",
+        reviewer: {
+          _id: reviewer._id,
+          name: reviewer.name,
+          email: reviewer.email,
+          role: reviewer.role,
+        },
+      });
+
+    } catch (error) {
+      console.error("Error registering reviewer:", error);
+      res.status(500).json({
+        error: "Server error",
+      });
     }
-
-    if (password.length < 6) {
-      return res.status(400).json({ error: "Password must be at least 6 characters" });
-    }
-
-    // Check if email already exists
-    const existingUser = await User.findOne({ email });
-    if (existingUser) {
-      return res.status(400).json({ error: "Email already registered" });
-    }
-
-    // Hash password
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    // Create reviewer
-    const reviewer = new User({
-      name,
-      email,
-      password: hashedPassword,
-      role: "reviewer",
-    });
-
-    await reviewer.save();
-
-    res.status(201).json({
-      message: "Reviewer registered successfully",
-      reviewer: {
-        _id: reviewer._id,
-        name: reviewer.name,
-        email: reviewer.email,
-        role: reviewer.role,
-      },
-    });
-  } catch (error) {
-    console.error("Error registering reviewer:", error);
-    res.status(500).json({ error: "Server error" });
   }
-});
-
+);
 export default router;

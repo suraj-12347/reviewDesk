@@ -8,6 +8,9 @@ import paperRoutes from "./routes/paperRoutes.js";
 import adminRoutes from './routes/adminRoutes.js';
 import reviewerRoutes from "./routes/reviewerRoute.js";
 dotenv.config();
+import categoryRoutes from "./routes/categoryRoutes.js";
+
+
 
 import { fileURLToPath } from "url";
 
@@ -40,6 +43,7 @@ app.use("/api/papers", paperRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/reviewer", reviewerRoutes);
 app.use("/api/files", reviewerRoutes);
+app.use("/api/categories", categoryRoutes);
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));

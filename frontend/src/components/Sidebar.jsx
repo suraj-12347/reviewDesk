@@ -9,6 +9,7 @@ import {
   UserPlus,
   ClipboardCheck,
   LayoutDashboard,
+  ListPlus
 } from "lucide-react";
 import logo from '../assets/logo.png'
 
@@ -33,7 +34,9 @@ const Sidebar = () => {
       { name: "Assign Reviewer", path: "/assign-reviewer", icon: ClipboardCheck },
       { name: "Registered Users", path: "/registered-users", icon: Users },
       { name: "Add Reviewer", path: "/add-reviewer", icon: UserPlus },
+      {name:"Add Ctegories",path:"/add-categories",icon:ListPlus},
       { name: "Notification", path: "/notifications", icon: Bell },
+      
     ],
     reviewer: [
       { name: "Papers", path: "/reviewer-dashboard", icon: FileText },
@@ -50,7 +53,9 @@ const Sidebar = () => {
       {/* Logo */}
       <div className="p-6 pb-15 font-bold ">
         <img src={logo} alt="" />
+
       </div>
+      
 
       {/* Menu */}
       <div className="flex-1 p-4 space-y-2 text-grey-700">

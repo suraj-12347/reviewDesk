@@ -3,7 +3,7 @@ import multer from "multer";
 import path from "path";
 import fs from "fs";
 import Paper from "../models/Paper.js";
-import { authenticateAdmin, authenticateUser } from "../middleware/authMiddleware.js";
+import { authenticateUser, authorizeRoles } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
@@ -44,16 +44,23 @@ const upload = multer({
 // Upload Paper Route
 router.post("/upload", upload.single("file"), async (req, res) => {
   try {
-    const { title, author } = req.body;
+    const { title, author, category, subCategory } = req.body;
+    console.log("req-body",req.body)
 
-    if (!req.file) return res.status(400).json({ message: "No file uploaded" });
+    if (!req.file) 
+      return res.status(400).json({ message: "No file uploaded" });
+
+    if (!category) 
+      return res.status(400).json({ message: "Category is required" });
 
     const newPaper = new Paper({
       title,
       author,
+      category,          // ✅ Add category reference
+      subCategory,       // ✅ Add subCategory if provided
       fileUrl: `/uploads/${req.file.filename}`,
       status: "Pending",
-      reuploadCount: 0, // Initial reupload count
+      reuploadCount: 0,  // Initial reupload count
     });
 
     await newPaper.save();
@@ -75,7 +82,7 @@ router.post("/reupload/:paperId", upload.single("file"), async (req, res) => {
     }
 
     // Stop if max attempts reached
-    if ((paper.reuploadCount || 1) >= 3) {
+    if ((paper.reuploadCount || 1) >= 2) {
       return res.status(400).json({
         message: "Maximum reupload attempts reached",
       });
@@ -87,7 +94,7 @@ router.post("/reupload/:paperId", upload.single("file"), async (req, res) => {
 
     // Update only what is needed
     paper.fileUrl = `/uploads/${req.file.filename}`;
-    paper.reuploadCount = (paper.reuploadCount || 1) + 1;
+    paper.reuploadCount = (paper.reuploadCount || 1) ;
     paper.status = "Pending";
 
     await paper.save();
@@ -100,29 +107,29 @@ router.post("/reupload/:paperId", upload.single("file"), async (req, res) => {
 });
 
 // Get Papers (User-specific)
-router.get("/my-papers",authenticateUser, async (req, res) => {
+router.get("/my-papers", authenticateUser,
+  authorizeRoles("user"), async (req, res) => {
   try {
-     console.log(req.user);
     const authorId = req.user.id;
-   
-    // const papers = await Paper.find({ author: userId }).lean(); // make sure you get all fields
-    const papers = await Paper.findOne({author:authorId})
-    console.log("all papers ",papers)
-    res.status(200).json(papers);;
+
+    const papers = await Paper.find({ author: authorId })
+      .populate("category")   // 👈 ADD THIS
+      .populate("author", "name email");
+
+    res.status(200).json(papers);
   } catch (error) {
     console.error("Error fetching papers:", error);
     res.status(500).json({ message: "Server Error" });
   }
 });
-router.get("/all-papers",authenticateAdmin, async (req, res) => {
+router.get("/all-papers", authenticateUser,
+  authorizeRoles("admin"), async (req, res) => {
   try {
-     console.log(req.user);
-    const authorId = req.user.id;
-   
-    // const papers = await Paper.find({ author: userId }).lean(); // make sure you get all fields
-    const papers = await Paper.find({});
-    console.log("all papers ",papers)
-    res.status(200).json(papers);;
+    const papers = await Paper.find({})
+      .populate("category")   // 👈 ADD THIS
+      .populate("author", "name email");
+
+    res.status(200).json(papers);
   } catch (error) {
     console.error("Error fetching papers:", error);
     res.status(500).json({ message: "Server Error" });

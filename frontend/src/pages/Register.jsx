@@ -1,162 +1,322 @@
-import { useState } from "react";
+import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { User, Mail, Lock } from "lucide-react"; // Lucide icons
-import React from "react";
-import logo from '../assets/logo.png'
+import logo from "../assets/logo.png";
+import { Country, State, City } from "country-state-city";
+import axiosInstance from "../utils/axiosInstance";
 
 const Register = () => {
+  const navigate = useNavigate();
+  const { login } = useAuth();
+  const [countries, setCountries] = useState([]);
+const [states, setStates] = useState([]);
+const [districts, setDistricts] = useState([]);
+
+  const [categories, setCategories] = useState([]);
+  const [subCategories, setSubCategories] = useState([]);
+
   const [formData, setFormData] = useState({
     name: "",
     email: "",
     password: "",
     role: "user",
+    country: "",
+    state: "",
+    district: "",
+    affiliation: "",
+    contactNumber: "",
+    reviewerCategory: {
+      mainCategory: "",
+      subCategory: ""
+    }
+  });
+  //load country
+  useEffect(() => {
+  setCountries(Country.getAllCountries());
+}, []);
+
+const handleCountryChange = (e) => {
+  const countryCode = e.target.value;
+
+  setFormData({
+    ...formData,
+    country: countryCode,
+    state: "",
+    district: "",
   });
 
-  const navigate = useNavigate();
-  const { login } = useAuth();
+  setStates(State.getStatesOfCountry(countryCode));
+  setDistricts([]);
+};
+const handleStateChange = (e) => {
+  const stateCode = e.target.value;
 
+  setFormData({
+    ...formData,
+    state: stateCode,
+    district: "",
+  });
+
+  setDistricts(
+    City.getCitiesOfState(formData.country, stateCode)
+  );
+};
+const handleDistrictChange = (e) => {
+  setFormData({
+    ...formData,
+    district: e.target.value,
+  });
+};
+
+  // 🔥 Fetch categories
+  useEffect(() => {
+    const fetchCategories = async () => {
+    try {
+      const res = await axiosInstance.get("/categories");
+      setCategories(res.data);
+    } catch (error) {
+      toast.error("Failed to fetch categories");
+    }
+  };
+    fetchCategories();
+  }, []);
+
+  // 🔥 Handle normal input change
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
+  // 🔥 Handle main category change
+  const handleMainCategoryChange = (e) => {
+    const selected = categories.find(c => c._id === e.target.value);
+
+    setFormData({
+      ...formData,
+      reviewerCategory: {
+        mainCategory: e.target.value,
+        subCategory: ""
+      }
+    });
+
+    setSubCategories(selected?.subCategories || []);
+  };
+
+  // 🔥 Handle sub category change
+  const handleSubCategoryChange = (e) => {
+    setFormData({
+      ...formData,
+      reviewerCategory: {
+        ...formData.reviewerCategory,
+        subCategory: e.target.value
+      }
+    });
+  };
+
+  // 🔥 Submit
   const handleSubmit = async (e) => {
     e.preventDefault();
+
     try {
-      const response = await axios.post("http://localhost:5000/api/auth/register", formData);
-
-      if (!response.data.token) {
-        console.error("Token is missing in the response");
-        return;
-      }
-
-      login(response.data.token);
-      navigate("/user-dashboard");
+      const response = await axiosInstance.post("/auth/register", formData);
+       
+      
+      navigate("/login");
     } catch (error) {
       console.error("Registration error", error.response?.data || error.message);
     }
   };
 
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100 p-4 gap-1">
-    
-        <div className='w-full md:w-full h-full flex md:gap-50 gap-5 flex-col md:flex-row items-center justify-center'>
-    
-          <div className='h-full w-full md:w-1/3 lg:w-1/3 flex flex-col items-center justify-center'>
-              <div className='w-full md:max-w-lg flex flex-col items-center justify-center gap-5'>
-               
-                <p className='text-4xl sm:text-5xl md:text-6xl font-black text-center text-blue-700 pt-20'>
-                  <img src={logo} alt="" />
-                </p>
-                
-              </div>
-               <div className="pl-30">
-                <span className='flex gap-1  py-1 px-3 border rounded-full text-sm text-gray-400'>
-                  Secure your reasearch !
-                </span>
-               </div>
-             <div className="pt-15">
-               <div className="floating-sk "></div>
-             </div>
-            </div>
-    
-          {/* RIGHT SIDE — Login */}
-          <div className="w-full md:w-1/3 flex flex-col justify-center items-center">
-    
-            
-    
-              
-    
-      <form onSubmit={handleSubmit} className="bg-white  flex flex-col w-full rounded-xl gap-2 p-4 px-5 shadow-lg">
-        <div className='text-center'>
-                  <p className='text-blue-600 text-3xl font-bold'>Register !</p>
-                   <p className='text-gray-500'>Keep all your credentials safe.</p> 
-                </div>
-          <div className="flex w-full flex-col p-2 ">
-            Name
+ return (
+  <div className="min-h-screen flex items-center justify-center bg-[#f3f4f6] p-4">
+    <div className="w-full max-w-5xl bg-white shadow-2xl rounded-2xl p-4">
+
+      {/* Header */}
+      <div className="text-center mb-8">
+        <img src={logo} alt="logo" className="mx-auto w-35 " />
+        <h2 className="text-2xl font-bold text-blue-600">Create Account</h2>
+        <p className="text-gray-500 text-sm">
+          Secure your research journey.
+        </p>
+      </div>
+
+      <form onSubmit={handleSubmit} className="flex flex-col gap-2">
+
+        {/* 🔥 Two Column Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+          {/* LEFT SIDE */}
+          <div className="flex flex-col gap-4">
+            <h3 className="text-gray-700 font-semibold">Personal Information</h3>
+
             <input
               type="text"
               name="name"
               placeholder="Full Name"
-              className="w-full outline-none h-10 rounded-sm p-1 bg-[#f3f4f6]"
+              className="p-3 bg-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
               value={formData.name}
               onChange={handleChange}
               required
             />
-          </div>
-            
 
-          <div className="flex w-full flex-col p-2 ">
-            <p>Email</p>
             <input
               type="email"
               name="email"
-              placeholder="Email"
-              className="w-full outline-none h-10 rounded-sm p-1 bg-[#f3f4f6]"
+              placeholder="Email Address"
+              className="p-3 bg-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
               value={formData.email}
               onChange={handleChange}
               required
             />
-          </div>
 
-          <div className="flex w-full flex-col p-2 ">
-            <p>Password</p>
             <input
               type="password"
               name="password"
               placeholder="Password"
-              className="w-full outline-none h-10 rounded-sm p-1 bg-[#f3f4f6]"
+              className="p-3 bg-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
               value={formData.password}
               onChange={handleChange}
               required
             />
+
+            <input
+              type="text"
+              name="affiliation"
+              placeholder="Affiliation (University / Organization)"
+              className="p-3 bg-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+              value={formData.affiliation}
+              onChange={handleChange}
+            />
+
+            <input
+              type="text"
+              name="contactNumber"
+              placeholder="Contact Number"
+              className="p-3 bg-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+              value={formData.contactNumber}
+              onChange={handleChange}
+            />
           </div>
-           <div className="flex w-full flex-col p-2 ">
+
+          {/* RIGHT SIDE */}
+          <div className="flex flex-col gap-4">
+            <h3 className="text-gray-700 font-semibold">Location & Role</h3>
+
+          {/* Country Dropdown */}
+<select
+  name="country"
+  value={formData.country}
+  onChange={handleCountryChange}
+  className="p-3 bg-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+  required
+>
+  <option value="">Select Country</option>
+  {countries.map((country) => (
+    <option key={country.isoCode} value={country.isoCode}>
+      {country.name}
+    </option>
+  ))}
+</select>
+
+{/* State Dropdown */}
+<select
+  name="state"
+  value={formData.state}
+  onChange={handleStateChange}
+  className="p-3 bg-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+  required
+  disabled={!formData.country}
+>
+  <option value="">Select State</option>
+  {states.map((state) => (
+    <option key={state.isoCode} value={state.isoCode}>
+      {state.name}
+    </option>
+  ))}
+</select>
+
+{/* District Dropdown */}
+<select
+  name="district"
+  value={formData.district}
+  onChange={handleDistrictChange}
+  className="p-3 bg-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+  required
+  disabled={!formData.state}
+>
+  <option value="">Select District</option>
+  {districts.map((city) => (
+    <option key={city.name} value={city.name}>
+      {city.name}
+    </option>
+  ))}
+</select>
+
             <select
-            name="role"
-            value={formData.role}
-            onChange={handleChange}
-            className="w-full p-2 border border-gray-300 rounded"
-          >
-            <option value="user">Auther</option>
-            <option value="reviewer">Reviewer</option>
-            
-          </select>
-            
+              name="role"
+              value={formData.role}
+              onChange={handleChange}
+              className="p-3 bg-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+            >
+              <option value="user">Author</option>
+              <option value="reviewer">Reviewer</option>
+            </select>
+
+            {/* Reviewer Only Fields */}
+            {formData.role === "reviewer" && (
+              <>
+                <select
+                  value={formData.reviewerCategory.mainCategory}
+                  onChange={handleMainCategoryChange}
+                  className="p-3 bg-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+                  required
+                >
+                  <option value="">Select Main Category</option>
+                  {categories.map((cat) => (
+                    <option key={cat._id} value={cat._id}>
+                      {cat.name}
+                    </option>
+                  ))}
+                </select>
+
+                <select
+                  value={formData.reviewerCategory.subCategory}
+                  onChange={handleSubCategoryChange}
+                  className="p-3 bg-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+                  required
+                >
+                  <option value="">Select Sub Category</option>
+                  {subCategories.map((sub, index) => (
+                    <option key={index} value={sub}>
+                      {sub}
+                    </option>
+                  ))}
+                </select>
+              </>
+            )}
           </div>
-          <div className="flex w-full flex-col p-2 ">
-            <button
-            type="submit"
-            className="w-full bg-blue-600 text-white p-2 rounded hover:bg-blue-500 transition duration-300"
-          >
-            Register
-          </button>
 
-            
-          </div>
+        </div>
 
-          
+        {/* Submit Button */}
+        <button
+          type="submit"
+          className="w-full bg-blue-600 text-white p-3 rounded-lg font-semibold hover:bg-blue-500 transition"
+        >
+          Register
+        </button>
 
-          
-
-            <p className="mt-4 text-center text-sm text-gray-600">
+        <p className="text-sm text-center text-gray-600">
           Already have an account?{" "}
-          <Link to="/login" className="text-blue-700 hover:underline font-medium">
-            Login here
+          <Link to="/login" className="text-blue-600 font-medium hover:underline">
+            Login
           </Link>
         </p>
-        </form>
 
-       
-    
-            
-          </div>
-    
-        </div>
-      </div>
-  );
+      </form>
+    </div>
+  </div>
+);
 };
 
 export default Register;
-

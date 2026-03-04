@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { useAuth } from "../context/AuthContext";
 import Papers from "./Papers";
+import PaperCard from "../components/PaperCard";
 
 
 const UserDashboard = () => {
@@ -49,7 +50,8 @@ const UserDashboard = () => {
        
 
         {/* Papers List */}
-        <Papers/>
+        {/* Papers List */}
+           <Papers/>
       </div>
     </div>
   );

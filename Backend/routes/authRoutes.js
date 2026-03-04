@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import User from "../models/User.js";
 import dotenv from "dotenv";
+import Category from "../models/Category.js";
 
 dotenv.config(); // ✅ Load env variables
 
@@ -11,32 +12,145 @@ const router = express.Router();
 // Register Route
 router.post("/register", async (req, res) => {
   try {
-    const { name, email, password, role } = req.body;
+    const {
+      name,
+      email,
+      password,
+      role,
+      reviewerCategory,
+      country,
+      state,
+      district,
+      affiliation,
+      contactNumber,
+    } = req.body;
 
-    let user = await User.findOne({ email });
-    if (user) return res.status(400).json({ message: "User already exists" });
+    /* ========= BASIC VALIDATION ========= */
 
-    const hashedPassword = await bcrypt.hash(password, 10);
-    user = new User({ name, email, password: hashedPassword, role });
-    await user.save();
+    if (!name || !email || !password || !country || !state || !district) {
+      return res.status(400).json({
+        message: "All required fields must be filled",
+      });
+    }
+
+    /* ========= BLOCK ADMIN REGISTRATION ========= */
+
+    if (role === "admin") {
+      return res.status(403).json({
+        message: "Admin registration is not allowed",
+      });
+    }
+
+    /* ========= SAFE ROLE ASSIGNMENT ========= */
+
+    const allowedRoles = ["user", "reviewer"];
+    const safeRole = allowedRoles.includes(role) ? role : "user";
+
+    /* ========= EMAIL NORMALIZATION ========= */
+
+    const normalizedEmail = email.toLowerCase().trim();
+
+    const existingUser = await User.findOne({ email: normalizedEmail });
+    if (existingUser) {
+      return res.status(400).json({
+        message: "User already exists",
+      });
+    }
+
+    /* ========= REVIEWER VALIDATION ========= */
+
+    let reviewerData = undefined;
+
+    if (safeRole === "reviewer") {
+      if (
+        !reviewerCategory ||
+        !reviewerCategory.mainCategory ||
+        !reviewerCategory.subCategory
+      ) {
+        return res.status(400).json({
+          message: "Category required for reviewer",
+        });
+      }
+
+      const categoryDoc = await Category.findById(
+        reviewerCategory.mainCategory
+      );
+
+      if (!categoryDoc) {
+        return res.status(400).json({
+          message: "Invalid main category",
+        });
+      }
+
+      if (
+        !categoryDoc.subCategories.includes(
+          reviewerCategory.subCategory
+        )
+      ) {
+        return res.status(400).json({
+          message: "Invalid sub category",
+        });
+      }
+
+      // 🔒 Prevent object injection
+      reviewerData = {
+        mainCategory: reviewerCategory.mainCategory,
+        subCategory: reviewerCategory.subCategory,
+      };
+    }
+
+    /* ========= PASSWORD HASH ========= */
+
+    const hashedPassword = await bcrypt.hash(password, 12);
+
+    /* ========= SAFE USER OBJECT ========= */
+
+    const userData = {
+      name,
+      email: normalizedEmail,
+      password: hashedPassword,
+      role: safeRole,
+      country,
+      state,
+      district,
+      affiliation,
+      contactNumber,
+    };
+
+    if (safeRole === "reviewer") {
+      userData.reviewerCategory = reviewerData;
+      userData.reviewerStatus = "pending"; // requires admin approval
+    }
+
+    /* ========= SAVE USER ========= */
+
+    const user = await User.create(userData);
+
+    /* ========= GENERATE TOKEN ========= */
 
     const token = jwt.sign(
-      { id: user._id, name: user.name, role: user.role },
+      { id: user._id, role: user.role },
       process.env.JWT_SECRET,
       { expiresIn: "1h" }
     );
 
+    /* ========= RESPONSE ========= */
+
     res.status(201).json({
+      success: true,
+      message: "User registered successfully",
       token,
       userId: user._id,
       role: user.role,
-      message: "User registered successfully"
     });
+
   } catch (error) {
-    res.status(500).json({ message: "Server error", error: error.message });
+    console.error("Register Error:", error);
+    res.status(500).json({
+      message: "Server error",
+    });
   }
 });
-
 
 
 // Login Route
