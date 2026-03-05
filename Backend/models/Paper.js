@@ -87,7 +87,7 @@ const paperSchema = new mongoose.Schema(
     default: "Pending",
   },
 
-  reuploadCount: { type: Number, default: 1 },
+  reuploadCount: { type: Number, default: 0 },
 
   assignedReviewers: [
     { type: mongoose.Schema.Types.ObjectId, ref: "User" }

@@ -37,9 +37,12 @@ router.get(
   authorizeRoles("admin"),
   async (req, res) => {
     try {
-      const papers = await Paper.find()
-        .populate("author", "name email")
-        .populate("category", "name subCategories"); 
+     const papers = await Paper.find()
+  .populate("author", "name email")
+  .populate("category", "name subCategories")
+  .populate("reviews.reviewer", "name email"); // ✅ add this
+
+
 
       res.json(papers);
     } catch (error) {
@@ -49,17 +52,22 @@ router.get(
 );
 
 // Get all reviewer
-router.get("/reviewers", authenticateUser,
-  authorizeRoles("admin"), async (req, res) => {
-  try {
-    const reviewers = await User.find({ role: "reviewer" }).select("name email");
-    res.json(reviewers);
-  } catch (error) {
-    console.error("Error fetching reviewers:", error);
-    res.status(500).json({ error: "Server error" });
+router.get(
+  "/reviewers",
+  authenticateUser,
+  authorizeRoles("admin"),
+  async (req, res) => {
+    try {
+      const reviewers = await User.find({ role: "reviewer" })
+        .select("name email reviewerCategory") // reviewerCategory include karo
+        .populate("reviewerCategory.mainCategory", "name"); // populate mainCategory name
+      res.json(reviewers);
+    } catch (error) {
+      console.error("Error fetching reviewers:", error);
+      res.status(500).json({ error: "Server error" });
+    }
   }
-});
-
+);
 // Assign paper to a reviewer
 router.put("/assign-reviewer", authenticateUser,
   authorizeRoles("admin"), async (req, res) => {

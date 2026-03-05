@@ -72,6 +72,10 @@ h1,h2,h3,h4,.h5 {
 }
 
 
-.scroll1::-webkit-scrollbar {
+ .scroll1::-webkit-scrollbar {
 display: none;
+}
+
+.reviews-details::-webkit-scrollbar {
+  display: none;
 }

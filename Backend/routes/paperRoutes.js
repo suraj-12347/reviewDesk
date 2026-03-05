@@ -41,26 +41,26 @@ const upload = multer({
   },
 });
 
+// -----------------------
 // Upload Paper Route
+// -----------------------
 router.post("/upload", upload.single("file"), async (req, res) => {
   try {
     const { title, author, category, subCategory } = req.body;
-    console.log("req-body",req.body)
 
     if (!req.file) 
       return res.status(400).json({ message: "No file uploaded" });
-
     if (!category) 
       return res.status(400).json({ message: "Category is required" });
 
     const newPaper = new Paper({
       title,
       author,
-      category,          // ✅ Add category reference
-      subCategory,       // ✅ Add subCategory if provided
+      category,
+      subCategory,
       fileUrl: `/uploads/${req.file.filename}`,
       status: "Pending",
-      reuploadCount: 0,  // Initial reupload count
+      reuploadCount: 0,
     });
 
     await newPaper.save();
@@ -71,34 +71,31 @@ router.post("/upload", upload.single("file"), async (req, res) => {
   }
 });
 
+// -----------------------
 // Reupload Paper
+// -----------------------
 router.post("/reupload/:paperId", upload.single("file"), async (req, res) => {
   try {
     const { paperId } = req.params;
 
     const paper = await Paper.findById(paperId);
-    if (!paper) {
-      return res.status(404).json({ message: "Paper not found" });
-    }
+    if (!paper) return res.status(404).json({ message: "Paper not found" });
 
     // Stop if max attempts reached
-    if ((paper.reuploadCount || 1) >= 2) {
-      return res.status(400).json({
-        message: "Maximum reupload attempts reached",
-      });
+    if ((paper.reuploadCount || 0) >= 2) {
+      return res.status(400).json({ message: "Maximum reupload attempts reached" });
     }
 
     if (!req.file) {
       return res.status(400).json({ message: "File is required" });
     }
 
-    // Update only what is needed
+    // Update file, increment reupload count, reset status
     paper.fileUrl = `/uploads/${req.file.filename}`;
-    paper.reuploadCount = (paper.reuploadCount || 1) ;
-    paper.status = "Pending";
+    paper.reuploadCount = (paper.reuploadCount || 0) + 1;
+    paper.status = "Pending"; // or "Reviewing"
 
     await paper.save();
-
     res.status(200).json(paper);
   } catch (error) {
     console.error("Error reuploading paper:", error);
@@ -106,15 +103,17 @@ router.post("/reupload/:paperId", upload.single("file"), async (req, res) => {
   }
 });
 
+// -----------------------
 // Get Papers (User-specific)
-router.get("/my-papers", authenticateUser,
-  authorizeRoles("user"), async (req, res) => {
+// -----------------------
+router.get("/my-papers", authenticateUser, authorizeRoles("user"), async (req, res) => {
   try {
     const authorId = req.user.id;
 
     const papers = await Paper.find({ author: authorId })
-      .populate("category")   // 👈 ADD THIS
-      .populate("author", "name email");
+      .populate("category")
+      .populate("author", "name email")
+      .populate("reviews.reviewer", "name"); // populate reviewer names
 
     res.status(200).json(papers);
   } catch (error) {
@@ -122,12 +121,16 @@ router.get("/my-papers", authenticateUser,
     res.status(500).json({ message: "Server Error" });
   }
 });
-router.get("/all-papers", authenticateUser,
-  authorizeRoles("admin"), async (req, res) => {
+
+// -----------------------
+// Get All Papers (Admin)
+// -----------------------
+router.get("/all-papers", authenticateUser, authorizeRoles("admin"), async (req, res) => {
   try {
     const papers = await Paper.find({})
-      .populate("category")   // 👈 ADD THIS
-      .populate("author", "name email");
+      .populate("category")
+      .populate("author", "name email")
+      .populate("reviews.reviewer", "name"); // populate reviewer names
 
     res.status(200).json(papers);
   } catch (error) {
@@ -136,9 +139,9 @@ router.get("/all-papers", authenticateUser,
   }
 });
 
-
-
-// Download Route
+// -----------------------
+// Download Paper Route
+// -----------------------
 router.get("/download/:filename", (req, res) => {
   const filePath = path.join(UPLOAD_DIR, req.params.filename);
 
@@ -154,15 +157,18 @@ router.get("/download/:filename", (req, res) => {
   }
 });
 
+// -----------------------
+// Download Feedback File
+// -----------------------
 router.get("/feedback-file/:paperId/:reviewerId", async (req, res) => {
   try {
     const { paperId, reviewerId } = req.params;
 
-    const paper = await Paper.findById(paperId);
+    const paper = await Paper.findById(paperId).populate("reviews.reviewer", "name");
     if (!paper) return res.status(404).json({ error: "Paper not found" });
 
     const review = paper.reviews.find(
-      (r) => r.reviewer.toString() === reviewerId
+      (r) => r.reviewer._id.toString() === reviewerId
     );
 
     if (!review || !review.feedbackFileUrl) {
