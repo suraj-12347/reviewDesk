@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import axios from "axios";
 import { FileText } from "lucide-react";
 import React from "react";
+import axiosInstance from "../utils/axiosInstance";
 
 const API = "http://localhost:5000/api/reviewer";
 
@@ -23,7 +24,7 @@ const Review = () => {
 
   const fetchAssignedPapers = async () => {
     try {
-      const response = await axios.get(`${API}/assigned-papers`, {
+      const response = await axiosInstance.get(`/assigned-papers`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
