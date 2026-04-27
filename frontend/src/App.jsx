@@ -5,7 +5,7 @@ import Register from "./pages/Register";
 import UserDashboard from "./pages/UserDashboard";
 import AdminDashboard from "./pages/AdminDashboard";
 import ReviewerDashboard from "./pages/ReviewerDashboard";
-import Sidebar from "./components/SideBar";
+import Sidebar from "./components/Sidebar";
 import React from "react";
 import PrivateRoute from "./components/PrivateRoute";
 

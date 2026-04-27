@@ -4,7 +4,7 @@ import { FileText } from "lucide-react";
 import React from "react";
 import axiosInstance from "../utils/axiosInstance";
 
-const API = "http://localhost:5000/api/reviewer";
+const API = "https://reviewdesk.onrender.com/api/reviewer";
 
 const Review = () => {
   const [papers, setPapers] = useState([]);
