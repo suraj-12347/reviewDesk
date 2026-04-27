@@ -60,7 +60,7 @@ try {
 
     <div className='w-full md:w-full h-full flex md:gap-50 gap-5 flex-col md:flex-row items-center justify-center'>
 
-      <div className='h-full w-full md:w-1/3 lg:w-1/3 flex flex-col items-center justify-center'>
+      <div className='h-full w-full md:w-1/3 lg:w-1/3 hidden md:flex flex-col items-center justify-center'>
           <div className='w-full md:max-w-lg flex flex-col items-center justify-center gap-5'>
            
             <p className='text-4xl sm:text-5xl md:text-6xl font-black text-center text-blue-700 pt-20'>

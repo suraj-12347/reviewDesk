@@ -60,9 +60,20 @@ const paperSchema = new mongoose.Schema(
     required: true,
   },
 
+  // 🔥 NEW FIELD
+  subAuthors: {
+    type: [String],
+    default: [],
+    validate: {
+      validator: function(arr) {
+        return arr.every(name => typeof name === "string" && name.trim().length > 0);
+      },
+      message: "SubAuthors must be non-empty strings"
+    }
+  },
+
   fileUrl: { type: String, required: true },
 
-  // ✅ Plagiarism Report (Paper Level)
   plagiarismReportUrl: { 
     type: String 
   },
@@ -94,6 +105,7 @@ const paperSchema = new mongoose.Schema(
   ],
 
   reviews: [reviewSchema],
+  overAllFeedback: { type: String },
 
 },
 { timestamps: true }

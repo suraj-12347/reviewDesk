@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import clsx from "clsx";
-import { MoreVertical, Paperclip, Eye, ArrowDownToLine } from "lucide-react";
-import ReviewsDetails from "./ReviewsDetails";
+import { MoreVertical, Users, Eye, Paperclip, ArrowDownToLine } from "lucide-react";
+import axiosInstance from "../utils/axiosInstance";
 
 const STATUS_STYLES = {
   Pending: "bg-yellow-100 text-yellow-700",
@@ -17,33 +17,39 @@ const viewPaper = (fileUrl) => {
 
 const PaperCard = ({
   paper,
-  user, // ✅ parent-driven user
-  reviews, // ✅ parent-driven reviews
+  user,
   onDelete,
   updatePaperStatus,
-  handleReupload,
+  reviews,
 }) => {
   const [menuOpen, setMenuOpen] = useState(false);
-  const [showFeedback, setShowFeedback] = useState(false);
+  const [showAuthors, setShowAuthors] = useState(false);
+
+  const [showReviewForm, setShowReviewForm] = useState(false);
+  const [selectedStatus, setSelectedStatus] = useState("");
+
+  const [plagFile, setPlagFile] = useState(null);
+  const [plagPercent, setPlagPercent] = useState("");
+  const [overallFeedback, setOverallFeedback] = useState("");
+
   const [showReviewList, setShowReviewList] = useState(false);
-  const [reuploadFile, setReuploadFile] = useState(null);
   const [selectedReview, setSelectedReview] = useState(null);
+  const [showFeedback, setShowFeedback] = useState(false);
+
+  const [reuploadFile, setReuploadFile] = useState(null);
+
+  const menuRef = useRef(null);
+  const authorsRef = useRef(null);
+  const reviewRef = useRef(null);
+  const feedbackRef = useRef(null);
 
   const isAdmin = user?.role === "admin";
-  const isUser = user?.role === "user";
-  const isAuthor = paper?.author?._id === user?._id;
-
-  console.log("reviews in card ", reviews)
+  const isAuthor = user?.role === "user" && user.id === paper?.author?._id;
 
   const canReupload =
     paper?.status === "Revisions" &&
     (paper?.reuploadCount ?? 0) < 2 &&
-    isUser &&
     isAuthor;
-
-  const reviewRef = useRef(null);
-  const feedbackRef = useRef(null);
-  const menuRef = useRef(null);
 
   const formatDate = (date) => {
     if (!date) return "12 Feb 2026";
@@ -54,119 +60,189 @@ const PaperCard = ({
     });
   };
 
+  // ✅ SINGLE CLEAN useEffect
   useEffect(() => {
     const handleClickOutside = (e) => {
-      if (menuRef.current && !menuRef.current.contains(e.target)) {
-        setMenuOpen(false);
-      }
-      if (reviewRef.current && !reviewRef.current.contains(e.target)) {
-        setShowReviewList(false);
-      }
-      if (feedbackRef.current && !feedbackRef.current.contains(e.target)) {
-        setShowFeedback(false);
-      }
+      if (menuRef.current && !menuRef.current.contains(e.target)) setMenuOpen(false);
+      if (authorsRef.current && !authorsRef.current.contains(e.target)) setShowAuthors(false);
+      if (reviewRef.current && !reviewRef.current.contains(e.target)) setShowReviewList(false);
+      if (feedbackRef.current && !feedbackRef.current.contains(e.target)) setShowFeedback(false);
     };
+
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const handleReuploadClick = () => {
+  // ✅ REVIEW SUBMIT (AXIOS)
+  const handleReviewSubmit = async () => {
+    
+
+    try {
+      const formData = new FormData();
+
+      if (plagFile) {
+        formData.append("file", plagFile);
+      }
+
+      formData.append("plagPercent", plagPercent);
+      formData.append("overallFeedback", overallFeedback);
+      formData.append("status", selectedStatus);
+
+      await axiosInstance.post(`/papers/update-review/${paper._id}`, formData);
+
+      updatePaperStatus(paper._id, selectedStatus);
+
+      alert("Review submitted");
+
+      setShowReviewForm(false);
+      setPlagFile(null);
+      setPlagPercent("");
+      setOverallFeedback("");
+
+    } catch (error) {
+      console.error(error);
+      alert("Failed to submit review");
+    }
+  };
+
+  // ✅ REUPLOAD (AXIOS)
+  const handleReuploadClick = async () => {
     if (!reuploadFile) {
-      alert("Select a file first.");
+      alert("Select a file first");
       return;
     }
-    handleReupload(paper._id, reuploadFile);
+
+    try {
+      const formData = new FormData();
+      formData.append("file", reuploadFile);
+
+      await axiosInstance.post(`/papers/reupload/${paper._id}`, formData);
+
+      alert("Reuploaded successfully");
+      setReuploadFile(null);
+
+    } catch (err) {
+      console.error(err);
+      alert("Reupload failed");
+    }
   };
 
   return (
-    <div className="w-full bg-white shadow-md hover:shadow-lg transition p-4 rounded-xl relative">
-      {/* Top Section */}
-      <div className="flex justify-between items-start">
-        <div>
-          <h4 className="text-blue-600 font-semibold line-clamp-1">
-            {paper?.title || "AI Research Paper"}
-          </h4>
-          <span className="text-sm text-gray-600">
-            {formatDate(paper?.createdAt)}
-          </span>
-        </div>
+    <>
+      <div className="w-full bg-white shadow-md hover:shadow-lg transition p-4 rounded-xl relative">
 
-        {/* Menu */}
-        <div className="relative" ref={menuRef}>
-          <button
-            onClick={() => setMenuOpen((prev) => !prev)}
-            className="text-gray-500 hover:text-black p-1 rounded hover:bg-gray-100 transition"
-          >
-            <MoreVertical size={18} />
-          </button>
+        {/* TOP */}
+        <div className="flex justify-between items-start">
 
-          {menuOpen && (
-            <div className="absolute right-0 mt-2 bg-white shadow-lg border rounded-md w-40 z-10">
+          <div>
+            <h4 className="text-blue-600 font-semibold line-clamp-1">
+              {paper?.title}
+            </h4>
+            <span className="text-sm text-gray-600">
+              {formatDate(paper?.createdAt)}
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2">
+
+            {/* AUTHORS */}
+            {isAdmin && (
+              <div className="relative" ref={authorsRef}>
+                <div
+                  onClick={() => setShowAuthors(!showAuthors)}
+                  className="p-1 hover:bg-gray-100 rounded cursor-pointer"
+                >
+                  <Users size={16} />
+                </div>
+
+                {showAuthors && (
+                  <div className="absolute right-0 mt-2 w-52 bg-white shadow-lg border rounded-md p-3 z-20">
+
+                    <p className="text-xs text-gray-500">Main Author</p>
+                    <p className="font-semibold text-blue-600">
+                      {paper?.author?.name}
+                    </p>
+
+                    <div className="border-t my-2"></div>
+
+                    <p className="text-xs text-gray-500">Sub Authors</p>
+                    {paper?.subAuthors?.length > 0 ? (
+                      paper.subAuthors.map((a, i) => (
+                        <p key={i} className="text-sm">• {a}</p>
+                      ))
+                    ) : (
+                      <p className="text-sm text-gray-400">None</p>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* MENU */}
+            <div className="relative" ref={menuRef}>
               <button
-                onClick={() => viewPaper(paper.fileUrl)}
-                className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 transition"
+                onClick={() => setMenuOpen(!menuOpen)}
+                className="p-1 hover:bg-gray-100 rounded"
               >
-                View Paper
+                <MoreVertical size={18} />
               </button>
 
-              {isAuthor && (
-                <button
-                  onClick={() => onDelete(paper._id)}
-                  className="w-full text-left px-4 py-2 text-sm hover:bg-red-50 text-red-600 transition"
-                >
-                  Delete
-                </button>
-              )}
+              {menuOpen && (
+                <div className="absolute right-0 mt-2 bg-white shadow-lg border rounded-md w-40 z-10">
 
-              {isAdmin && (
-                <>
                   <button
-                    onClick={() => updatePaperStatus(paper._id, "Accepted")}
-                    className="w-full text-left px-4 py-2 text-sm hover:bg-green-50 text-green-600 transition"
+                    onClick={() => viewPaper(paper.fileUrl)}
+                    className="w-full px-4 py-2 text-sm hover:bg-gray-100"
                   >
-                    Accept
+                    View Paper
                   </button>
-                  <button
-                    onClick={() => updatePaperStatus(paper._id, "Revisions")}
-                    className="w-full text-left px-4 py-2 text-sm hover:bg-yellow-50 text-yellow-600 transition"
-                  >
-                    Revision
-                  </button>
-                  <button
-                    onClick={() => updatePaperStatus(paper._id, "Rejected")}
-                    className="w-full text-left px-4 py-2 text-sm hover:bg-red-50 text-red-600 transition"
-                  >
-                    Reject
-                  </button>
-                </>
+
+                  {isAuthor && (
+                    <button
+                      onClick={() => onDelete(paper._id)}
+                      className="w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50"
+                    >
+                      Delete
+                    </button>
+                  )}
+
+                  {isAdmin && (
+                    <>
+                      {["Accepted", "Revisions", "Rejected"].map((status) => (
+                        <button
+                          key={status}
+                          onClick={() => {
+                            setSelectedStatus(status);
+                            setShowReviewForm(true);
+                          }}
+                          className={`w-full px-4 py-2 text-sm hover:bg-gray-50 ${
+                            status === "Accepted"
+                              ? "text-green-600"
+                              : status === "Revisions"
+                              ? "text-yellow-600"
+                              : "text-red-600"
+                          }`}
+                        >
+                          {status}
+                        </button>
+                      ))}
+                    </>
+                  )}
+                </div>
               )}
             </div>
-          )}
+
+          </div>
         </div>
-      </div>
 
-      {/* Status & Reupload Count */}
-      <div className="mt-3 flex gap-4">
-        <span
-          className={clsx(
-            "px-3 py-1 rounded-full text-xs font-medium",
-            STATUS_STYLES[paper?.status] || "bg-gray-100 text-gray-600"
-          )}
-        >
-          {paper?.status || "Pending"}
-        </span>
-        {paper?.reuploadCount > 0 && (
-          <span
-            className={clsx(
-              "px-3 py-1 rounded-full text-xs font-medium bg-gray-100"
-            )}
-          >
-            Reuploads: {paper?.reuploadCount ?? 0}
+        {/* STATUS */}
+        <div className="mt-3">
+          <span className={clsx("px-3 py-1 rounded-full text-xs font-medium", STATUS_STYLES[paper?.status] || "bg-gray-100 text-gray-600")}>
+            {paper?.status}
           </span>
-        )}
-      </div>
+        </div>
 
-      <div className="w-full border-t border-gray-200 my-4" />
+       <div className="w-full border-t border-gray-200 my-4" />
 
       {/* Stats */}
       <div className="flex items-center justify-between text-sm text-gray-600">
@@ -376,33 +452,68 @@ const PaperCard = ({
           {paper?.author?.name?.charAt(0)?.toUpperCase() || "U"}
         </div>
       </div>
+        
 
-      {/* Reupload Section (ONLY USER + AUTHOR) */}
-      {canReupload && (
-        <div className="flex flex-col gap-2 mt-4">
-          <input
-            type="file"
-            onChange={(e) => setReuploadFile(e.target.files[0] || null)}
-            className="border p-2 rounded text-sm"
-          />
-          <button
-            onClick={handleReuploadClick}
-            className="bg-gradient-to-r from-orange-500 to-yellow-500 text-white px-4 py-2 rounded hover:scale-105 transition"
-          >
-            Reupload
-          </button>
+        {/* REUPLOAD */}
+        {canReupload && (
+          <div className="flex flex-col gap-2 mt-4">
+            <input type="file" onChange={(e) => setReuploadFile(e.target.files[0])} />
+            <button
+              onClick={handleReuploadClick}
+              className="bg-orange-500 text-white py-2 rounded"
+            >
+              Reupload
+            </button>
+          </div>
+        )}
+
+      </div>
+
+      {/* MODAL */}
+      {showReviewForm && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-xl w-[350px] relative">
+
+            <button
+              onClick={() => setShowReviewForm(false)}
+              className="absolute top-2 right-3"
+            >
+              ✕
+            </button>
+
+            <h2 className="text-lg font-bold mb-3">
+              {selectedStatus} Paper
+            </h2>
+
+            <input type="file" onChange={(e) => setPlagFile(e.target.files[0])} className="mb-3 w-full" />
+
+            <input
+              type="number"
+              placeholder="Plagiarism %"
+              value={plagPercent}
+              onChange={(e) => setPlagPercent(e.target.value)}
+              className="mb-3 w-full border p-2 rounded"
+            />
+
+            <textarea
+              placeholder="Overall Feedback"
+              value={overallFeedback}
+              onChange={(e) => setOverallFeedback(e.target.value)}
+              className="mb-3 w-full border p-2 rounded"
+            />
+
+            <button
+              onClick={handleReviewSubmit}
+              className="w-full bg-blue-600 text-white py-2 rounded"
+            >
+              Submit
+            </button>
+
+          </div>
         </div>
       )}
-    </div>
+    </>
   );
 };
 
 export default PaperCard;
-
-
-
-
-
-
-
-{/* Modal for Review Details */}

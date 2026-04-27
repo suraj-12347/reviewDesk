@@ -24,7 +24,7 @@ const Review = () => {
 
   const fetchAssignedPapers = async () => {
     try {
-      const response = await axiosInstance.get(`/assigned-papers`, {
+      const response = await axiosInstance.get(`/reviewer/assigned-papers`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 

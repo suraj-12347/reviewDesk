@@ -41,23 +41,91 @@ const upload = multer({
   },
 });
 
+
+// -----------------------
+// Update Plag Report + Feedback (ADMIN)
+// -----------------------
+router.post(
+  "/update-review/:paperId",
+  authenticateUser,
+  authorizeRoles("admin"),
+  upload.single("file"), // 🔥 file from frontend
+  async (req, res) => {
+    try {
+      const { paperId } = req.params;
+      const { status, plagPercent, overallFeedback } = req.body;
+
+      const paper = await Paper.findById(paperId);
+      if (!paper) {
+        return res.status(404).json({ message: "Paper not found" });
+      }
+
+      // ✅ Update plagiarism file
+      if (req.file) {
+        paper.plagiarismReportUrl = `/uploads/${req.file.filename}`;
+      }
+
+      // ✅ Update percentage
+      if (plagPercent !== undefined) {
+        paper.plagiarismPercentage = Number(plagPercent);
+      }
+
+      // ✅ Save overall feedback (you need to add this field in schema if not present)
+      paper.overAllFeedback = overallFeedback || "";
+
+      // ✅ Update status
+      if (status) {
+        paper.status = status;
+      }
+
+      await paper.save();
+
+      res.status(200).json({
+        message: "Review updated successfully",
+        paper,
+      });
+
+    } catch (error) {
+      console.error("Error updating review:", error);
+      res.status(500).json({ message: "Server Error" });
+    }
+  }
+);
 // -----------------------
 // Upload Paper Route
 // -----------------------
 router.post("/upload", upload.single("file"), async (req, res) => {
   try {
-    const { title, author, category, subCategory } = req.body;
+    const { title, author, category, subCategory, subAuthors } = req.body;
 
-    if (!req.file) 
+    if (!req.file)
       return res.status(400).json({ message: "No file uploaded" });
-    if (!category) 
+
+    if (!category)
       return res.status(400).json({ message: "Category is required" });
+
+    // 🔥 Parse subAuthors safely
+    let parsedSubAuthors = [];
+
+    if (subAuthors) {
+      try {
+        parsedSubAuthors = JSON.parse(subAuthors);
+      } catch (err) {
+        return res.status(400).json({ message: "Invalid subAuthors format" });
+      }
+    }
+
+    // 🔥 Clean data (important)
+    parsedSubAuthors = parsedSubAuthors.filter(
+      (a) => typeof a === "string" && a.trim() !== ""
+    );
 
     const newPaper = new Paper({
       title,
       author,
       category,
       subCategory,
+      subAuthors: parsedSubAuthors, // ✅ added
       fileUrl: `/uploads/${req.file.filename}`,
       status: "Pending",
       reuploadCount: 0,
@@ -65,6 +133,7 @@ router.post("/upload", upload.single("file"), async (req, res) => {
 
     await newPaper.save();
     res.status(201).json(newPaper);
+
   } catch (error) {
     console.error("Error uploading paper:", error);
     res.status(500).json({ message: "Server Error" });
